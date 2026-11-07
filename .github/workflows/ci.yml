@@ -1,0 +1,50 @@
+name: AstraeaGrid CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Test Go ${{ matrix.go-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ['1.22', '1.23']
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Code formatting and vet check
+        run: go vet ./...
+
+      - name: Run unit & integration test suite
+        run: go test -v ./...
+
+      - name: Run Reed-Solomon encoding benchmarks
+        run: go test -bench BenchmarkRSEncode16x16 -run none ./pkg/rs
+
+      - name: Build astraea CLI binary
+        run: go build -v -o bin/astraea ./cmd/astraea
+
+      - name: Run astraea produce demo
+        run: go run cmd/astraea/main.go produce
+
+      - name: Run astraea sample demo
+        run: go run cmd/astraea/main.go sample
+
+      - name: Run astraea fraud demo
+        run: go run cmd/astraea/main.go fraud-demo
